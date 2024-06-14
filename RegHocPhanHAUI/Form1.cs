@@ -1,11 +1,14 @@
 ﻿using Newtonsoft.Json;
+using OpenQA.Selenium;
+using OpenQA.Selenium.Chrome;
 using RestSharp;
 using System;
 using System.Collections.Generic;
 using System.Data;
 using System.IO;
-using System.Net.Http;
 using System.Reflection;
+using System.Text.RegularExpressions;
+using System.Threading;
 using System.Windows.Forms;
 
 namespace RegHocPhanHAUI
@@ -14,6 +17,7 @@ namespace RegHocPhanHAUI
     {
         private DataTable dataTable;
         private BindingSource bindingSource;
+
         private DataTable dtClass;
         private BindingSource bSClass;
 
@@ -51,6 +55,8 @@ namespace RegHocPhanHAUI
             return dataTable;
         }
 
+        #region Request
+
         async void GetAllModules(string kv, string cookie)
         {
             var options = new RestClientOptions()
@@ -78,7 +84,9 @@ namespace RegHocPhanHAUI
             List<Modules> parsed_json = JsonConvert.DeserializeObject<List<Modules>>(response.Content);
 
             // Convert the list to a DataTable
+
             dataTable = ConvertToDataTable(parsed_json);
+
 
             // Initialize BindingSource and set the DataSource to the DataTable
             bindingSource = new BindingSource();
@@ -131,33 +139,35 @@ namespace RegHocPhanHAUI
 
         async void AddClass(string ClassID, string kv, string cookie)
         {
-            var client = new HttpClient();
-            var request = new HttpRequestMessage(HttpMethod.Post, "https://sv.haui.edu.vn/ajax/register/action.htm?cmd=addclass&v=" + kv);
-            request.Headers.Add("accept", "application/json, text/javascript, */*; q=0.01");
-            request.Headers.Add("accept-language", "en-US,en;q=0.9,vi;q=0.8,ar;q=0.7,de;q=0.6");
-            //request.Headers.Add("content-length", "128");
-            request.Headers.Add("cookie", cookie);
-            request.Headers.Add("origin", "https://sv.haui.edu.vn");
-            request.Headers.Add("priority", "u=1, i");
-            request.Headers.Add("referer", "https://sv.haui.edu.vn/register/");
-            request.Headers.Add("sec-ch-ua", "\"Not/A)Brand\";v=\"8\", \"Chromium\";v=\"126\", \"Google Chrome\";v=\"126\"");
-            request.Headers.Add("sec-ch-ua-mobile", "?0");
-            request.Headers.Add("sec-ch-ua-platform", "\"Windows\"");
-            request.Headers.Add("sec-fetch-dest", "empty");
-            request.Headers.Add("sec-fetch-mode", "cors");
-            request.Headers.Add("sec-fetch-site", "same-origin");
-            request.Headers.Add("user-agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36");
-            request.Headers.Add("x-requested-with", "XMLHttpRequest");
-            var content = new MultipartFormDataContent();
-            content.Add(new StringContent(ClassID), "class");
-            content.Add(new StringContent("886"), "ctdk");
-            request.Content = content;
-            var response = await client.SendAsync(request);
-            response.EnsureSuccessStatusCode();
-            Console.WriteLine(await response.Content.ReadAsStringAsync());
+            var options = new RestClientOptions()
+            {
+                UserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36",
+            };
+            var client = new RestClient(options);
+            var request = new RestRequest("https://sv.haui.edu.vn/ajax/register/action.htm?cmd=addclass&v=" + kv, Method.Post);
+            request.AddHeader("accept", "application/json, text/javascript, */*; q=0.01");
+            request.AddHeader("accept-language", "en-US,en;q=0.9,vi;q=0.8,ar;q=0.7,de;q=0.6");
+            request.AddHeader("cookie", cookie);
+            request.AddHeader("origin", "https://sv.haui.edu.vn");
+            request.AddHeader("priority", "u=1, i");
+            request.AddHeader("referer", "https://sv.haui.edu.vn/register/");
+            request.AddHeader("sec-ch-ua", "\"Not/A)Brand\";v=\"8\", \"Chromium\";v=\"126\", \"Google Chrome\";v=\"126\"");
+            request.AddHeader("sec-ch-ua-mobile", "?0");
+            request.AddHeader("sec-ch-ua-platform", "\"Windows\"");
+            request.AddHeader("sec-fetch-dest", "empty");
+            request.AddHeader("sec-fetch-mode", "cors");
+            request.AddHeader("sec-fetch-site", "same-origin");
+            request.AddHeader("x-requested-with", "XMLHttpRequest");
+            request.AlwaysMultipartFormData = true;
+            request.AddParameter("class", ClassID);
+            request.AddParameter("ctdk", "886");
+            RestResponse response = await client.ExecuteAsync(request);
+            Notification parsed_json = JsonConvert.DeserializeObject<Notification>(response.Content);
 
-            MessageBox.Show(await response.Content.ReadAsStringAsync());
+            MessageBox.Show(parsed_json.Message);
         }
+
+        #endregion
 
         private void textBox1_TextChanged(object sender, EventArgs e)
         {
@@ -197,19 +207,14 @@ namespace RegHocPhanHAUI
             }
             catch
             {
-                MessageBox.Show("Kiểm tra lại file config!");
+                GetCookie();
+                GetAllModules(kverify, cookie);
             }
         }
 
         private void dtModules_CellContentClick(object sender, DataGridViewCellEventArgs e)
         {
-            DataGridViewButtonColumn btnColumn = new DataGridViewButtonColumn();
-            btnColumn.HeaderText = "Đăng kí";
-            btnColumn.Name = "btnColumn";
-            btnColumn.Text = "Đăng kí";
-            btnColumn.UseColumnTextForButtonValue = true; // Hiển thị text trên nút
-            // Thêm cột vào DataGridView
-            dgvClass.Columns.Add(btnColumn);
+           
             string fid = dgvModules.Rows[e.RowIndex].Cells[0].Value.ToString();
             GetClassByModules(fid, kverify, cookie);
         }
@@ -218,7 +223,14 @@ namespace RegHocPhanHAUI
         {
             //dgvClass.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.DisplayedCells;
             dgvModules.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.DisplayedCells;
-            
+
+            DataGridViewButtonColumn btnColumn = new DataGridViewButtonColumn();
+            btnColumn.HeaderText = "Đăng kí";
+            btnColumn.Name = "btnColumn";
+            btnColumn.Text = "Đăng kí";
+            btnColumn.UseColumnTextForButtonValue = true; // Hiển thị text trên nút
+            // Thêm cột vào DataGridView
+            dgvClass.Columns.Add(btnColumn);
 
             string filePath = Environment.CurrentDirectory + "/config/data.txt";
             string lines = File.ReadAllText(filePath);
@@ -242,6 +254,74 @@ namespace RegHocPhanHAUI
                 // Gọi hàm xử lý khi nút được nhấn
                 ButtonClickHandler(e.RowIndex);
             }
+        }
+
+        void GetCookie()
+        {
+            string filePath = Environment.CurrentDirectory + "/config/account.txt";
+            string lines = File.ReadAllText(filePath);
+            string[] dt = lines.Split('|');
+
+            string user = dt[0];
+            string pass = dt[1];
+
+
+            ChromeDriverService cService = ChromeDriverService.CreateDefaultService();
+            cService.HideCommandPromptWindow = true;
+            ChromeDriver driver = new ChromeDriver(cService);
+            try
+            {
+                // Navigate to Url
+                driver.Navigate().GoToUrl("https://one.haui.edu.vn/loginapi/sv");
+
+                driver.FindElement(By.Id("ctl00_inpUserName")).SendKeys(user);
+                driver.FindElement(By.Id("ctl00_inpPassword")).SendKeys(pass);
+                driver.FindElement(By.Id("ctl00_butLogin")).Click();
+
+                // Get All available cookies
+                var cookies = driver.Manage().Cookies.AllCookies;
+                string ck = string.Empty;
+                ck += cookies[0].Name.ToString() + "=" + cookies[0].Value.ToString() + ";";
+                ck += cookies[1].Name.ToString() + "=" + cookies[1].Value.ToString() + ";";
+                ck += cookies[2].Name.ToString() + "=" + cookies[2].Value.ToString() + ";";
+                ck += cookies[3].Name.ToString() + "=" + cookies[3].Value.ToString() + ";";
+                ck += cookies[4].Name.ToString() + "=" + cookies[4].Value.ToString() + ";";
+                ck += cookies[5].Name.ToString() + "=" + cookies[5].Value.ToString();
+
+                //MessageBox.Show(ck);
+
+                string htmlContent = driver.PageSource;
+
+                string pattern = @"var kverify\s*=\s*'([^']+)';";
+                Match match = Regex.Match(htmlContent, pattern);
+                string kv = string.Empty;
+
+                if (match.Success)
+                {
+                    kv = match.Groups[1].Value;
+                }
+                else
+                {
+                    MessageBox.Show("Không tìm thấy giá trị của biến kverify");
+                }
+
+                string path_config = Environment.CurrentDirectory + "/config/data.txt";
+
+                File.WriteAllText(path_config, kv + "|" + ck);
+
+                Thread.Sleep(2000);
+
+            }
+            finally
+            {
+                driver.Quit();
+                MessageBox.Show("Lấy cookie thành công!");
+            }
+        }
+
+        private void btnGetCookie_Click(object sender, EventArgs e)
+        {
+            GetCookie();
         }
     }
 }
