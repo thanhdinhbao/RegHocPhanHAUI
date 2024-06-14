@@ -5,7 +5,9 @@ using RestSharp;
 using System;
 using System.Collections.Generic;
 using System.Data;
+using System.Diagnostics;
 using System.IO;
+using System.Net.Http;
 using System.Reflection;
 using System.Text.RegularExpressions;
 using System.Threading;
@@ -27,6 +29,118 @@ namespace RegHocPhanHAUI
         public Form1()
         {
             InitializeComponent();
+        }
+
+        private string RunCMD(string cmd)
+        {
+            Process cmdProcess;
+            cmdProcess = new Process();
+            cmdProcess.StartInfo.FileName = "cmd.exe";
+            cmdProcess.StartInfo.Arguments = "/c " + cmd;
+            cmdProcess.StartInfo.RedirectStandardOutput = true;
+            cmdProcess.StartInfo.UseShellExecute = false;
+            cmdProcess.StartInfo.CreateNoWindow = true;
+            cmdProcess.StartInfo.Verb = "runas";
+            cmdProcess.Start();
+            string output = cmdProcess.StandardOutput.ReadToEnd();
+            cmdProcess.WaitForExit();
+            if (String.IsNullOrEmpty(output))
+                return "";
+            return output;
+        }
+
+        void CheckLicense()
+        {
+            string output = RunCMD("wmic diskdrive get serialNumber"); // check số serial ổ cứng
+            using (StreamWriter HDD = new StreamWriter("HDD.txt", true))
+            {
+                HDD.WriteLine(output);
+                HDD.Close();
+            }
+            string[] lines = File.ReadAllLines("HDD.txt");
+            File.Delete("HDD.txt");
+            string str = Regex.Replace(lines[2], @"\s", ""); // lấy serial đầu tiên
+
+            string outputs = RunCMD("wmic bios get serialnumber"); // check số serial bios
+            using (StreamWriter BIOS = new StreamWriter("bios.txt", true))
+            {
+                BIOS.WriteLine(outputs);
+                BIOS.Close();
+            }
+            string[] liness = File.ReadAllLines("bios.txt");
+            File.Delete("bios.txt");
+            string strs = Regex.Replace(liness[2], @"\s", ""); // lấy serial đầu tiên
+
+            string keys = string.Concat(strs, str);
+
+            HttpClient httpClient = new HttpClient();
+            string text2 = keys;
+            string requestUri2 = "https://docs.google.com/spreadsheets/d/1JwQmNaha0kaZzEOCnxjqb3j04zEkZwR6MxAoUyg14Ig/edit?usp=sharing";
+            string text3 = httpClient.GetAsync(requestUri2).Result.Content.ReadAsStringAsync().Result.ToString();
+            Match match2 = Regex.Match(text3.ToString(), text2 + ".*?(?=ok)");
+            bool flag2 = match2 != Match.Empty;
+            if (flag2)
+            {
+                string[] array = match2.ToString().Split(new char[]
+                {
+                            '|'
+                });
+                //string siteurlold = "https://mmosorfware.com/time.php";
+                //ServicePointManager.Expect100Continue = true;
+                //ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12;
+                //string htmlold = new System.Net.WebClient().DownloadString(siteurlold);
+                //string[] arrayn = htmlold.ToString().Split(new char[]
+                //{
+                //             '/'
+                //});
+                //int dayn = Int32.Parse(arrayn[0]);
+                //int monthn = Int32.Parse(arrayn[1]);
+                //int yearn = Int32.Parse(arrayn[2]);
+
+                DateTime time = DateTime.Now;
+                int dayn = time.Day;
+                int monthn = time.Month;
+                int yearn = time.Year;
+
+                string[] arrays = array[1].ToString().Split(new char[]
+               {
+                            '/'
+               });
+
+                int dayt = Int32.Parse(arrays[0]);
+                int montht = Int32.Parse(arrays[1]);
+                int yeart = Int32.Parse(arrays[2]);
+
+                System.DateTime now = new System.DateTime(yearn, monthn, dayn);
+                System.DateTime then = new System.DateTime(yeart, montht, dayt);
+                System.TimeSpan diff1 = then.Subtract(now);
+
+
+                int days = (int)Math.Ceiling(diff1.TotalDays);
+
+                bool flag3 = days <= 0;
+                if (flag3)
+                {
+                    MessageBox.Show("Vui lòng liên hệ admin để gia hạn.", "Phần mềm hết hạn" + days, MessageBoxButtons.OK, MessageBoxIcon.Asterisk);
+                    //this.tslExp.Text = array[1].ToString();
+                    //this.tslRemainTime.Text = "Còn lại: " + days.ToString() + " ngày";
+                    Application.Exit();
+                }
+                else
+                {
+                    MessageBox.Show("Đăng Nhập Thành Công !", "Còn lại: " + days + " ngày!", MessageBoxButtons.OK, MessageBoxIcon.Asterisk);
+                    //this.tslExp.Text = array[1].ToString();
+                    //this.tslRemainTime.Text = "Còn lại: " + days.ToString() + " ngày";
+                }
+            }
+
+            else
+            {
+                MessageBox.Show(string.Format("Bạn chưa mua bản quyền tool, vui lòng bấm Ctrl + C và gửi mã \"{0}\" cho chúng tôi để kích hoạt tool, bấm OK để sao chép key!", keys), "Thông báo active bản quyền!", MessageBoxButtons.OK);
+                Clipboard.SetText(keys);
+                //Environment.Exit(Environment.ExitCode);
+                Application.Exit();
+            }
         }
 
         private DataTable ConvertToDataTable<T>(List<T> items)
@@ -221,9 +335,13 @@ namespace RegHocPhanHAUI
 
         private void Form1_Load(object sender, EventArgs e)
         {
+            //Check key
+            CheckLicense();
+
             //dgvClass.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.DisplayedCells;
             dgvModules.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.DisplayedCells;
 
+            //Thêm cột đăng kí
             DataGridViewButtonColumn btnColumn = new DataGridViewButtonColumn();
             btnColumn.HeaderText = "Đăng kí";
             btnColumn.Name = "btnColumn";
@@ -232,6 +350,7 @@ namespace RegHocPhanHAUI
             // Thêm cột vào DataGridView
             dgvClass.Columns.Add(btnColumn);
 
+            //Đọc file config(kv và cookie)
             string filePath = Environment.CurrentDirectory + "/config/data.txt";
             string lines = File.ReadAllText(filePath);
             string[] dt = lines.Split('|');
@@ -278,8 +397,21 @@ namespace RegHocPhanHAUI
                 driver.FindElement(By.Id("ctl00_inpPassword")).SendKeys(pass);
                 driver.FindElement(By.Id("ctl00_butLogin")).Click();
 
+                Thread.Sleep(1000);
+
+                lblAccountName.Text = driver.FindElement(By.ClassName("user-name")).Text;
+
                 // Get All available cookies
                 var cookies = driver.Manage().Cookies.AllCookies;
+                //Bỏ qua khảo sát
+                try
+                {
+                    driver.SwitchTo().Alert().Accept();
+                }
+                catch
+                {
+
+                }
                 string ck = string.Empty;
                 ck += cookies[0].Name.ToString() + "=" + cookies[0].Value.ToString() + ";";
                 ck += cookies[1].Name.ToString() + "=" + cookies[1].Value.ToString() + ";";

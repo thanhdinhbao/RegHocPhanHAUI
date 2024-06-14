@@ -36,6 +36,8 @@ namespace RegHocPhanHAUI
             this.textBox2 = new System.Windows.Forms.TextBox();
             this.btnGetCookie = new System.Windows.Forms.Button();
             this.label1 = new System.Windows.Forms.Label();
+            this.label2 = new System.Windows.Forms.Label();
+            this.lblAccountName = new System.Windows.Forms.Label();
             ((System.ComponentModel.ISupportInitialize)(this.dgvModules)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.dgvClass)).BeginInit();
             this.SuspendLayout();
@@ -109,11 +111,30 @@ namespace RegHocPhanHAUI
             this.label1.TabIndex = 7;
             this.label1.Text = "Tìm kiếm:";
             // 
+            // label2
+            // 
+            this.label2.AutoSize = true;
+            this.label2.Location = new System.Drawing.Point(684, 13);
+            this.label2.Name = "label2";
+            this.label2.Size = new System.Drawing.Size(50, 13);
+            this.label2.TabIndex = 8;
+            this.label2.Text = "Account:";
+            // 
+            // lblAccountName
+            // 
+            this.lblAccountName.AutoSize = true;
+            this.lblAccountName.Location = new System.Drawing.Point(736, 13);
+            this.lblAccountName.Name = "lblAccountName";
+            this.lblAccountName.Size = new System.Drawing.Size(0, 13);
+            this.lblAccountName.TabIndex = 9;
+            // 
             // Form1
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.ClientSize = new System.Drawing.Size(1043, 386);
+            this.Controls.Add(this.lblAccountName);
+            this.Controls.Add(this.label2);
             this.Controls.Add(this.label1);
             this.Controls.Add(this.btnGetCookie);
             this.Controls.Add(this.textBox2);
@@ -141,6 +162,8 @@ namespace RegHocPhanHAUI
         private System.Windows.Forms.TextBox textBox2;
         private System.Windows.Forms.Button btnGetCookie;
         private System.Windows.Forms.Label label1;
+        private System.Windows.Forms.Label label2;
+        private System.Windows.Forms.Label lblAccountName;
     }
 }
 
